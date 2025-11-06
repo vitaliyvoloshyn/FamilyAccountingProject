@@ -2,6 +2,7 @@ from typing import Type, Union
 
 from sqlalchemy import select, Select, update, Update, delete, Delete
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from .models import Base, Operation, User, Category, Account
 
@@ -12,7 +13,7 @@ class SQLAlchemyRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def add(self, object_):
+    async def add(self, object_: Base):
         self.session.add(object_)
         await self.session.flush()
         return object_
@@ -23,12 +24,12 @@ class SQLAlchemyRepository:
                      .where(self.model.id == pk))
         res = await self._execute(query)
         res_ = res.scalar()
-        print(res_)
         return res_
 
     async def get_list(self, **filters):
         query = select(self.model).filter_by(**filters)
-        res = await self._execute(query)
+        res_ = await self._execute(query)
+        res = res_.unique()
         return res.scalars().all()
 
     async def update(self, pk: int, **data):
@@ -45,8 +46,7 @@ class SQLAlchemyRepository:
 
     async def _execute(self, query: Union[Select, Update, Delete]):
         res = await self.session.execute(query)
-        print(res)
-        return res
+        return res.unique()
 
     async def _execute_sync(self, query: Union[Select, Update, Delete]):
         def sync_db_operation(session):
@@ -59,6 +59,41 @@ class SQLAlchemyRepository:
 
 class OperationRepository(SQLAlchemyRepository):
     model = Operation
+
+    async def add(self, object_: Base, category_id: int):
+        query = select(Category).where(Category.id == category_id)
+        category_ = await self._execute(query)
+        category = category_.scalar()
+        if not category:
+            raise ValueError(f'Категорії з id={category_id} не існує')
+        object_.categories.append(category)
+        self.session.add(object_)
+
+    async def get_list_by_category_id(self, category_id: int):
+        c = Category.__table__
+
+        # Початковий рівень — сама категорія
+        category_cte = (
+            select(c.c.id, c.c.parent_id)
+            .where(c.c.id == category_id)
+            .cte(name="category_cte", recursive=True)
+        )
+
+        # Рекурсивна частина — беремо дочірні категорії
+        category_alias = aliased(category_cte)
+        category_cte = category_cte.union_all(
+            select(c.c.id, c.c.parent_id).where(c.c.parent_id == category_alias.c.id)
+        )
+
+        # Вибираємо операції, прив’язані до будь-якої категорії з цього CTE
+        stmt = (
+            select(Operation)
+            .join(Operation.categories)
+            .where(Category.id.in_(select(category_cte.c.id)))
+        )
+
+        result = await self.session.scalars(stmt)
+        return result.all()
 
 
 class UserRepository(SQLAlchemyRepository):
@@ -84,9 +119,3 @@ class CategoryRepository(SQLAlchemyRepository):
 
 class AccountRepository(SQLAlchemyRepository):
     model = Account
-
-    async def add(self, object_, category_id: int):
-        query = select(Category).where(Category.id==category_id)
-        category = await self.get_by_id(category_id, query)
-        object_.category = category
-        self.session.add(object_)
