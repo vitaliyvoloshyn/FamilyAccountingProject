@@ -1,6 +1,6 @@
-import datetime
-from datetime import date
-from typing import List
+from datetime import datetime
+from decimal import Decimal
+from typing import Optional
 
 from pydantic import BaseModel as Schema
 
@@ -13,7 +13,7 @@ class UserAddDTO(Schema):
 
 class UserDTO(UserAddDTO):
     id: int
-    created_at: date | None
+    created_at: datetime | None
     is_active: bool | None
 
 
@@ -26,7 +26,7 @@ class AccountAddDTO(Schema):
 
 class AccountDTO(AccountAddDTO):
     id: int
-    created_at: date
+    created_at: datetime
     is_active: bool
     author: 'UserDTO'
     # operations:
@@ -36,16 +36,16 @@ class AccountDTO(AccountAddDTO):
 
 class OperationAddDTO(Schema):
     id: int
-    operation_date: date | None = datetime.datetime.now().date()
-    amount: int
-    comment: str
+    operation_date: datetime | None = datetime.now()
+    amount: Decimal
+    comment: Optional[str] = None
     author_id: int
     account_id: int
 
 
 class OperationDTO(OperationAddDTO):
-    created_at: date
-    updated_at: date
+    created_at: datetime
+    updated_at: datetime
     author: 'UserDTO'
-    account: int
-    categories: List['']
+    # account: int
+    # categories: List['']

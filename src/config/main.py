@@ -20,4 +20,5 @@ class DBConfig(SettingsBase):
         # return "sqlite:///db/ua.db"
 
 
-db_config = DBConfig()
+def db_config():
+    return DBConfig()

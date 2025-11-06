@@ -1,7 +1,7 @@
 import asyncio
 
-from src.models import Operation
-from src.unit_of_work import StorageManager
+from src.familyaccountingproject.models import Operation, Account
+from src.familyaccountingproject.unit_of_work import StorageManager
 
 
 # Run the async function
@@ -35,16 +35,16 @@ async def test_operations():
         #                                author_id=4,
         #                                category_type_id=1,
         #                                ))
-        # await sm.account.add(Account(name='Портмоне',
+        # await sm.account.add(Account(name='Моя картка',
         #                                author_id=4,
         #                                currency_id=1,
-        #                                account_type_id=1,
+        #                                account_type_id=2,
         #                                ))
-        await sm.operation.add(Operation(amount=53.67,
-                                         author_id=4,
-                                         account_id=2,
-                                         ),10)
-        print(await sm.category.get_by_id(16))
+        # await sm.operation.add(Operation(amount=47,
+        #                                  author_id=4,
+        #                                  account_id=2,
+        #                                  ),18)
+        print(await sm.operation.get_list())
 
 
 if __name__ == "__main__":

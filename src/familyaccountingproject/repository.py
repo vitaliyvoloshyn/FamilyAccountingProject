@@ -1,14 +1,17 @@
-from typing import Type, Union
+from typing import Type, Union, List
 
+from pydantic import BaseModel as Schema
 from sqlalchemy import select, Select, update, Update, delete, Delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from .models import Base, Operation, User, Category, Account
+from .schemas import OperationDTO
 
 
 class SQLAlchemyRepository:
     model: Type[Base]
+    dto: Type[Schema]
 
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -26,11 +29,13 @@ class SQLAlchemyRepository:
         res_ = res.scalar()
         return res_
 
-    async def get_list(self, **filters):
+    async def get_list(self, validate: bool = True, **filters):
         query = select(self.model).filter_by(**filters)
         res_ = await self._execute(query)
-        res = res_.unique()
-        return res.scalars().all()
+        res = res_.scalars().all()
+        if validate:
+            return self.to_schema(res)
+        return res
 
     async def update(self, pk: int, **data):
         stmt = (
@@ -56,9 +61,18 @@ class SQLAlchemyRepository:
 
         return await self.session.run_sync(sync_db_operation)
 
+    def to_schema(self, list_orm: List[Base]):
+        res = [self.to_schema_singleton(item) for item in list_orm]
+        return res
+
+    def to_schema_singleton(self, orm: Base):
+        schema = self.dto.model_validate(orm, from_attributes=True)
+        return schema
+
 
 class OperationRepository(SQLAlchemyRepository):
     model = Operation
+    dto = OperationDTO
 
     async def add(self, object_: Base, category_id: int):
         query = select(Category).where(Category.id == category_id)
