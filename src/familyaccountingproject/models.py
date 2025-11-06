@@ -17,7 +17,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     first_name: Mapped[str]
     last_name: Mapped[str]
-    email: Mapped[str] = mapped_column(unique=True)
+    email: Mapped[str]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     is_active: Mapped[bool] = mapped_column(default=True, server_default=expression.true())
     __table_args__ = (
@@ -30,8 +30,8 @@ class User(Base):
 class Currency(Base):
     __tablename__ = 'currencies'
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(unique=True)
-    code: Mapped[str] = mapped_column(String(3), unique=True)
+    name: Mapped[str]
+    code: Mapped[str] = mapped_column(String(3))
     short_form: Mapped[str] = mapped_column(String(10))
     accounts:Mapped[List['Account']] = relationship(back_populates='currency')
     __table_args__ = (
@@ -43,8 +43,8 @@ class Currency(Base):
 class AccountType(Base):
     __tablename__ = 'account_types'
     id: Mapped[int] = mapped_column(primary_key=True)
-    type: Mapped[str] = mapped_column(unique=True)
-    accounts: Mapped[List['Account']] = relationship(back_populates='account_type', lazy='joined')
+    type: Mapped[str]
+    accounts: Mapped[List['Account']] = relationship(back_populates='account_type', lazy='selectin')
     __table_args__ = (
         UniqueConstraint('type', name='unique_account_types_type'),
     )
@@ -53,16 +53,16 @@ class AccountType(Base):
 class Account(Base):
     __tablename__ = 'accounts'
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     is_active: Mapped[bool] = mapped_column(default=True, server_default=expression.true())
     author_id: Mapped[int] = mapped_column(ForeignKey('users.id', name='account-author_id'))
     currency_id: Mapped[int] = mapped_column(ForeignKey('currencies.id', name='account-currency_id'))
     account_type_id: Mapped[int] = mapped_column(ForeignKey('account_types.id', name='account-account_type_id'))
-    author: Mapped['User'] = relationship(backref='accounts', lazy='joined')
-    operations: Mapped[List['Operation']] = relationship(back_populates='account', lazy='joined')
-    currency: Mapped['Currency'] = relationship(back_populates='accounts', lazy='joined')
-    account_type: Mapped['AccountType'] = relationship(back_populates='accounts', lazy='joined')
+    author: Mapped['User'] = relationship(backref='accounts', lazy='selectin')
+    operations: Mapped[List['Operation']] = relationship(back_populates='account', lazy='selectin')
+    currency: Mapped['Currency'] = relationship(back_populates='accounts', lazy='selectin')
+    account_type: Mapped['AccountType'] = relationship(back_populates='accounts', lazy='selectin')
 
     __table_args__ = (
         UniqueConstraint('name', name='unique_accounts_name'),
@@ -72,8 +72,8 @@ class Account(Base):
 class CategoryType(Base):
     __tablename__ = 'category_types'
     id: Mapped[int] = mapped_column(primary_key=True)
-    type: Mapped[str] = mapped_column(unique=True)
-    categories: Mapped[List['Category']] = relationship(back_populates='category_type', lazy='joined')
+    type: Mapped[str]
+    categories: Mapped[List['Category']] = relationship(back_populates='category_type', lazy='selectin')
 
     __table_args__ = (
         UniqueConstraint('type', name='unique_category_types_type'),
@@ -91,23 +91,22 @@ category_operation = Table(
 class Category(Base):
     __tablename__ = 'categories'
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str]
     author_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
-    author: Mapped['User'] = relationship(backref='categories', lazy='joined')
+    author: Mapped['User'] = relationship(backref='categories', lazy='selectin')
     parent_id: Mapped[int] = mapped_column(ForeignKey('categories.id'), nullable=True)
     category_type_id: Mapped[int] = mapped_column(ForeignKey('category_types.id'))
     operations: Mapped[List['Operation']] = relationship(secondary=category_operation,
-                                                         back_populates='categories', lazy='joined')
-    category_type: Mapped['CategoryType'] = relationship(back_populates='categories', lazy='joined')
-    # parent: Mapped['Category'] = relationship(lazy='joined', backref=backref('parent', remote_side=[id]))
-    parent: Mapped['Category'] = relationship("Category", remote_side=[id], lazy='joined')
-    children: Mapped[List['Category']] = relationship("Category", back_populates='parent', lazy='joined')
+                                                         back_populates='categories', lazy='selectin')
+    category_type: Mapped['CategoryType'] = relationship(back_populates='categories', lazy='selectin')
+    parent: Mapped['Category'] = relationship("Category", remote_side=[id], lazy='selectin')
+    children: Mapped[List['Category']] = relationship("Category", back_populates='parent', lazy='selectin')
     __table_args__ = (
         UniqueConstraint('name', name='unique_categories_name'),
     )
 
     def __repr__(self):
-        return f"Category(id={self.id}, name={self.name}, author={self.author}, parent_category={self.parent}, children={self.children})"
+        return f"Category(id={self.id}, name={self.name}, author={self.author}, parent_id={self.parent_id})"
 
 
 class Operation(Base):
@@ -117,13 +116,13 @@ class Operation(Base):
     amount: Mapped[Decimal] = mapped_column(DECIMAL(10, 2))
     comment: Mapped[str] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), server_onupdate=func.now())
     author_id: Mapped[int] = mapped_column(ForeignKey('users.id', name='operation-user_id'))
     account_id: Mapped[int] = mapped_column(ForeignKey('accounts.id', name='operation-account_id'))
-    author: Mapped['User'] = relationship(backref='operations', lazy='joined')
-    account: Mapped['Account'] = relationship(back_populates='operations', lazy='joined')
+    author: Mapped['User'] = relationship(backref='operations', lazy='selectin')
+    account: Mapped['Account'] = relationship(back_populates='operations', lazy='selectin')
     categories: Mapped[List['Category']] = relationship(secondary=category_operation,
                                                         back_populates='operations')
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(amount={self.amount}"
+        return f"{self.__class__.__name__}(amount={self.amount})"
