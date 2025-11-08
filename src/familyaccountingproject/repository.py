@@ -1,12 +1,13 @@
+from pprint import pprint
 from typing import Type, Union, List
 
 from pydantic import BaseModel as Schema
-from sqlalchemy import select, Select, update, Update, delete, Delete
+from sqlalchemy import select, Select, update, Update, delete, Delete, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from .models import Base, Operation, User, Category, Account
-from .schemas import OperationDTO
+from .schemas import OperationDTO, AccountDTO
 
 
 class SQLAlchemyRepository:
@@ -29,7 +30,7 @@ class SQLAlchemyRepository:
         res_ = res.scalar()
         return res_
 
-    async def get_list(self, validate: bool = True, **filters):
+    async def get_list(self, validate: bool = False, **filters):
         query = select(self.model).filter_by(**filters)
         res_ = await self._execute(query)
         res = res_.scalars().all()
@@ -51,7 +52,7 @@ class SQLAlchemyRepository:
 
     async def _execute(self, query: Union[Select, Update, Delete]):
         res = await self.session.execute(query)
-        return res.unique()
+        return res
 
     async def _execute_sync(self, query: Union[Select, Update, Delete]):
         def sync_db_operation(session):
@@ -66,7 +67,7 @@ class SQLAlchemyRepository:
         return res
 
     def to_schema_singleton(self, orm: Base):
-        schema = self.dto.model_validate(orm, from_attributes=True)
+        schema = self.dto.model_validate(orm)
         return schema
 
 
@@ -75,13 +76,23 @@ class OperationRepository(SQLAlchemyRepository):
     dto = OperationDTO
 
     async def add(self, object_: Base, category_id: int):
+        query = (select(Operation)
+                 .filter(Operation.operation_date < object_.operation_date)
+                 .order_by(Operation.operation_date.desc()))
+        query = (select(Operation)
+                 .filter(Operation.operation_date > object_.operation_date)
+                 .order_by(Operation.operation_date.asc()))
+        operations_for_change = await self._execute(query)
+        for operation in operations_for_change.scalars():
+            print(operation)
+
         query = select(Category).where(Category.id == category_id)
         category_ = await self._execute(query)
         category = category_.scalar()
         if not category:
             raise ValueError(f'Категорії з id={category_id} не існує')
-        object_.categories.append(category)
-        self.session.add(object_)
+        # object_.category = category
+        # self.session.add(object_)
 
     async def get_list_by_category_id(self, category_id: int):
         c = Category.__table__
@@ -133,3 +144,4 @@ class CategoryRepository(SQLAlchemyRepository):
 
 class AccountRepository(SQLAlchemyRepository):
     model = Account
+    dto = AccountDTO

@@ -54,6 +54,10 @@ class Account(Base):
     __tablename__ = 'accounts'
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
+    current_balance: Mapped[Decimal] = mapped_column(DECIMAL(10, 2),
+                                                     default=Decimal("0.00"),
+                                                     server_default="0.00",
+                                                     nullable=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     is_active: Mapped[bool] = mapped_column(default=True, server_default=expression.true())
     author_id: Mapped[int] = mapped_column(ForeignKey('users.id', name='account-author_id'))
@@ -93,17 +97,14 @@ class Category(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
     author_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
-    author: Mapped['User'] = relationship(backref='categories', lazy='selectin')
     parent_id: Mapped[int] = mapped_column(ForeignKey('categories.id'), nullable=True)
     category_type_id: Mapped[int] = mapped_column(ForeignKey('category_types.id'))
+    author: Mapped['User'] = relationship(backref='categories', lazy='selectin')
     operations: Mapped[List['Operation']] = relationship(
-        back_populates='categories', lazy='selectin')
+        back_populates='category', lazy='selectin')
     category_type: Mapped['CategoryType'] = relationship(back_populates='categories', lazy='selectin')
-    # parent: Mapped['Category'] = relationship("Category", remote_side=[id], lazy='selectin')
-    # children: Mapped[List['Category']] = relationship("Category", back_populates='parent', lazy='selectin')
-    __table_args__ = (
-        UniqueConstraint('name', name='unique_categories_name'),
-    )
+    parent: Mapped['Category'] = relationship("Category", remote_side=[id], lazy='selectin')
+    children: Mapped[List['Category']] = relationship("Category", back_populates='parent', lazy='selectin')
 
     def __repr__(self):
         return f"Category(id={self.id}, name={self.name}, author={self.author}, parent_id={self.parent_id})"
@@ -114,6 +115,7 @@ class Operation(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     operation_date: Mapped[datetime] = mapped_column(server_default=func.now())
     amount: Mapped[Decimal] = mapped_column(DECIMAL(10, 2))
+    balance_after: Mapped[Decimal] = mapped_column(DECIMAL(10, 2))
     comment: Mapped[str] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), server_onupdate=func.now())

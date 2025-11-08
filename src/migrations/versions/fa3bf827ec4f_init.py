@@ -1,8 +1,8 @@
-"""empty message
+"""init
 
-Revision ID: 260540441603
+Revision ID: fa3bf827ec4f
 Revises: 
-Create Date: 2025-11-06 22:19:28.309898
+Create Date: 2025-11-07 15:51:18.180000
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '260540441603'
+revision: str = 'fa3bf827ec4f'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -55,6 +55,7 @@ def upgrade() -> None:
     op.create_table('accounts',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
+    sa.Column('current_balance', sa.DECIMAL(precision=10, scale=2), server_default='0.00', nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.Column('is_active', sa.Boolean(), server_default=sa.text('true'), nullable=False),
     sa.Column('author_id', sa.Integer(), nullable=False),
@@ -75,13 +76,13 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['author_id'], ['users.id'], ),
     sa.ForeignKeyConstraint(['category_type_id'], ['category_types.id'], ),
     sa.ForeignKeyConstraint(['parent_id'], ['categories.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('name', name='unique_categories_name')
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('operations',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('operation_date', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.Column('amount', sa.DECIMAL(precision=10, scale=2), nullable=False),
+    sa.Column('balance_after', sa.DECIMAL(precision=10, scale=2), nullable=False),
     sa.Column('comment', sa.String(length=100), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),

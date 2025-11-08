@@ -1,4 +1,6 @@
 import asyncio
+import datetime
+from pprint import pprint
 
 from src.familyaccountingproject.models import Operation, Account
 from src.familyaccountingproject.unit_of_work import StorageManager
@@ -40,11 +42,16 @@ async def test_operations():
         #                                currency_id=1,
         #                                account_type_id=2,
         #                                ))
-        # await sm.operation.add(Operation(amount=47,
-        #                                  author_id=4,
-        #                                  account_id=2,
-        #                                  ),18)
-        print(await sm.operation.get_list())
+        await sm.operation.add(Operation(amount=839,
+                                         author_id=1,
+                                         account_id=1,
+                                         balance_after=35000.32,
+                                         operation_date=datetime.datetime(2025,11,7, 15, 9, 50)
+                                         ),6)
+        # pprint(await sm.operation.get_list())
+        # accounts = await sm.account.get_list()
+        # for account in accounts:
+        #     pprint(f"{account.name} - balance {account.current_balance} {account.currency.short_form}")
 
 
 if __name__ == "__main__":

@@ -21,7 +21,8 @@ class StorageManager:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         try:
             await self.session.commit()
-        except Exception:
+        except Exception as e:
+            print(str(e))
             await self.session.rollback()
         finally:
             await self.session.close()
